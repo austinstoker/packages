@@ -1,25 +1,31 @@
+import 'dart:developer';
+
 import 'package:beamer/beamer.dart';
 import 'package:flutter/material.dart';
 
 import 'locations.dart';
 
 class MenuButton extends StatefulWidget {
-  MenuButton({
-    required this.beamer,
-    required this.uri,
-    required this.child,
-  });
+  MenuButton(
+      {required this.beamer,
+      required this.uri,
+      required this.child,
+      this.onChanged});
 
   final GlobalKey<BeamerState> beamer;
   final String uri;
   final Widget child;
+  final void Function(bool)? onChanged;
 
   @override
   _MenuButtonState createState() => _MenuButtonState();
 }
 
 class _MenuButtonState extends State<MenuButton> {
-  void _setStateListener() => setState(() {});
+  void _setStateListener() {
+    log("listener fired in " + widget.uri + " changed");
+    setState(() {});
+  }
 
   @override
   void initState() {
@@ -34,8 +40,9 @@ class _MenuButtonState extends State<MenuButton> {
     final path = (context.currentBeamLocation.state as BeamState).uri.path;
 
     return ElevatedButton(
-      onPressed: () =>
-          widget.beamer.currentState?.routerDelegate.beamToNamed(widget.uri),
+      onPressed: () {
+        widget.beamer.currentState?.routerDelegate.root.beamToNamed(widget.uri);
+      },
       style: ButtonStyle(
         backgroundColor: path.contains(widget.uri)
             ? MaterialStateProperty.all<Color>(Colors.green)
@@ -53,8 +60,22 @@ class _MenuButtonState extends State<MenuButton> {
   }
 }
 
-class HomeScreen extends StatelessWidget {
-  final _beamerKey = GlobalKey<BeamerState>();
+class HomeScreen extends StatefulWidget {
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  final _booksBeamerKey = GlobalKey<BeamerState>();
+  final _articlesBeamerKey = GlobalKey<BeamerState>();
+
+  int currentIndex = 0;
+
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -70,43 +91,72 @@ class HomeScreen extends StatelessWidget {
             child: Column(
               children: [
                 MenuButton(
-                  beamer: _beamerKey,
+                  beamer: _booksBeamerKey,
                   uri: '/books',
                   child: Text('Books'),
+                  onChanged: (bool isActive) {
+                    if (isActive) currentIndex = 1;
+                  },
                 ),
                 SizedBox(height: 16.0),
                 MenuButton(
-                  beamer: _beamerKey,
-                  uri: '/articles',
-                  child: Text('Articles'),
-                ),
+                    beamer: _articlesBeamerKey,
+                    uri: '/articles',
+                    child: Text('Articles'),
+                    onChanged: (bool isActive) {
+                      if (isActive) currentIndex = 2;
+                    }),
               ],
             ),
           ),
           Container(width: 1, color: Colors.blue),
-          if ((context.currentBeamLocation.state as BeamState).uri.path.isEmpty)
-            Expanded(
-              child: Container(
-                child: Center(
-                  child: Text('Home'),
-                ),
-              ),
-            )
-          else
-            Expanded(
-              child: ClipRRect(
-                child: Beamer(
-                  key: _beamerKey,
-                  routerDelegate: BeamerDelegate(
-                    transitionDelegate: const NoAnimationTransitionDelegate(),
-                    locationBuilder: (routeInformation, _) =>
-                        routeInformation.location!.contains('articles')
-                            ? ArticlesLocation(routeInformation)
-                            : BooksLocation(routeInformation),
-                  ),
-                ),
+          Expanded(
+            child: Container(
+              color: Colors.pink,
+              child: Center(
+                child: IndexedStack(
+                    index: currentIndex,
+                    alignment: Alignment.center,
+                    children: [
+                      Container(
+                        child: Center(
+                          child: Text('Home'),
+                        ),
+                      ),
+                      Center(
+                        child: Beamer(
+                          key: _booksBeamerKey,
+                          routerDelegate: BeamerDelegate(
+                            routeListener: (r, d) {
+                              log("books router Navigating to:" +
+                                  (r.location ?? ""));
+                            },
+                            transitionDelegate:
+                                const NoAnimationTransitionDelegate(),
+                            locationBuilder: (routeInformation, _) =>
+                                BooksLocation(routeInformation),
+                          ),
+                        ),
+                      ),
+                      Center(
+                        child: Beamer(
+                          key: _articlesBeamerKey,
+                          routerDelegate: BeamerDelegate(
+                            routeListener: (r, d) {
+                              log("articles router Navigating to:" +
+                                  (r.location ?? ""));
+                            },
+                            transitionDelegate:
+                                const NoAnimationTransitionDelegate(),
+                            locationBuilder: (routeInformation, _) =>
+                                ArticlesLocation(routeInformation),
+                          ),
+                        ),
+                      ),
+                    ]),
               ),
             ),
+          ),
         ],
       ),
     );
